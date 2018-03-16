@@ -50,4 +50,3 @@ if __name__ == "__main__":
         print(data)
         time.sleep(0.1)
         iter += 1
-     

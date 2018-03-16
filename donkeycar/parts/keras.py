@@ -37,7 +37,10 @@ class KerasPilot():
         train_gen: generator that yields an array of images an array of 
         
         """
-
+        tensorboard = keras.callbacks.TensorBoard(log_dir='C:/Users/moritz/Documents/donkeycar/d2/logs', histogram_freq=0,
+                                    batch_size=32, write_graph=True, write_grads=False,
+                                    write_images=True, embeddings_freq=0, embeddings_layer_names=None,
+                                    embeddings_metadata=None)
         #checkpoint to save model after each epoch
         save_best = keras.callbacks.ModelCheckpoint(saved_model_path, 
                                                     monitor='val_loss', 
@@ -52,7 +55,7 @@ class KerasPilot():
                                                    verbose=verbose, 
                                                    mode='auto')
         
-        callbacks_list = [save_best]
+        callbacks_list = [save_best, tensorboard]
 
         if use_early_stop:
             callbacks_list.append(early_stop)
@@ -148,16 +151,16 @@ class KerasIMU(KerasPilot):
 def default_categorical():
     from keras.layers import Input, Dense, merge
     from keras.models import Model
-    from keras.layers import Convolution2D, MaxPooling2D, Reshape, BatchNormalization
+    from keras.layers import Conv2D, MaxPooling2D, Reshape, BatchNormalization
     from keras.layers import Activation, Dropout, Flatten, Dense
     
-    img_in = Input(shape=(120, 160, 3), name='img_in')                      # First layer, input layer, Shape comes from camera.py resolution, RGB
+    img_in = Input(shape=(160, 120, 3), name='img_in')                      # First layer, input layer, Shape comes from camera.py resolution, RGB
     x = img_in
-    x = Convolution2D(24, (5,5), strides=(2,2), activation='relu')(x)       # 24 features, 5 pixel x 5 pixel kernel (convolution, feauture) window, 2wx2h stride, relu activation
-    x = Convolution2D(32, (5,5), strides=(2,2), activation='relu')(x)       # 32 features, 5px5p kernel window, 2wx2h stride, relu activatiion
-    x = Convolution2D(64, (5,5), strides=(2,2), activation='relu')(x)       # 64 features, 5px5p kernal window, 2wx2h stride, relu
-    x = Convolution2D(64, (3,3), strides=(2,2), activation='relu')(x)       # 64 features, 3px3p kernal window, 2wx2h stride, relu
-    x = Convolution2D(64, (3,3), strides=(1,1), activation='relu')(x)       # 64 features, 3px3p kernal window, 1wx1h stride, relu
+    x = Conv2D(24, (5,5), strides=(2,2), activation='relu')(x)       # 24 features, 5 pixel x 5 pixel kernel (convolution, feauture) window, 2wx2h stride, relu activation
+    x = Conv2D(32, (5,5), strides=(2,2), activation='relu')(x)       # 32 features, 5px5p kernel window, 2wx2h stride, relu activatiion
+    x = Conv2D(64, (5,5), strides=(2,2), activation='relu')(x)       # 64 features, 5px5p kernal window, 2wx2h stride, relu
+    x = Conv2D(64, (3,3), strides=(2,2), activation='relu')(x)       # 64 features, 3px3p kernal window, 2wx2h stride, relu
+    x = Conv2D(64, (3,3), strides=(1,1), activation='relu')(x)       # 64 features, 3px3p kernal window, 1wx1h stride, relu
 
     # Possibly add MaxPooling (will make it less sensitive to position in image).  Camera angle fixed, so may not to be needed
 
@@ -176,7 +179,7 @@ def default_categorical():
     model.compile(optimizer='adam',
                   loss={'angle_out': 'categorical_crossentropy', 
                         'throttle_out': 'mean_absolute_error'},
-                  loss_weights={'angle_out': 0.9, 'throttle_out': .001})
+                  loss_weights={'angle_out': 0.9, 'throttle_out': 0.1})
 
     return model
 
@@ -185,16 +188,16 @@ def default_categorical():
 def default_linear():
     from keras.layers import Input, Dense, merge
     from keras.models import Model
-    from keras.layers import Convolution2D, MaxPooling2D, Reshape, BatchNormalization
+    from keras.layers import Conv2D, MaxPooling2D, Reshape, BatchNormalization
     from keras.layers import Activation, Dropout, Flatten, Dense
     
     img_in = Input(shape=(120,160,3), name='img_in')
     x = img_in
-    x = Convolution2D(24, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(32, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(64, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(1,1), activation='relu')(x)
+    x = Conv2D(24, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(32, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(64, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(2,2), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(1,1), activation='relu')(x)
     
     x = Flatten(name='flattened')(x)
     x = Dense(100, activation='linear')(x)
@@ -222,18 +225,18 @@ def default_linear():
 def default_n_linear(num_outputs):
     from keras.layers import Input, Dense, merge
     from keras.models import Model
-    from keras.layers import Convolution2D, MaxPooling2D, Reshape, BatchNormalization
+    from keras.layers import Conv2D, MaxPooling2D, Reshape, BatchNormalization
     from keras.layers import Activation, Dropout, Flatten, Cropping2D, Lambda
     
     img_in = Input(shape=(120,160,3), name='img_in')
     x = img_in
     x = Cropping2D(cropping=((60,0), (0,0)))(x) #trim 60 pixels off top
     x = Lambda(lambda x: x/127.5 - 1.)(x) # normalize and re-center
-    x = Convolution2D(24, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(32, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(64, (5,5), strides=(1,1), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(1,1), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(1,1), activation='relu')(x)
+    x = Conv2D(24, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(32, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(64, (5,5), strides=(1,1), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(1,1), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(1,1), activation='relu')(x)
     
     x = Flatten(name='flattened')(x)
     x = Dense(100, activation='relu')(x)
@@ -263,7 +266,7 @@ def default_imu(num_outputs, num_imu_inputs):
 
     from keras.layers import Input, Dense
     from keras.models import Model
-    from keras.layers import Convolution2D, MaxPooling2D, Reshape, BatchNormalization
+    from keras.layers import Conv2D, MaxPooling2D, Reshape, BatchNormalization
     from keras.layers import Activation, Dropout, Flatten, Cropping2D, Lambda
     from keras.layers.merge import concatenate
     
@@ -273,11 +276,11 @@ def default_imu(num_outputs, num_imu_inputs):
     x = img_in
     x = Cropping2D(cropping=((60,0), (0,0)))(x) #trim 60 pixels off top
     #x = Lambda(lambda x: x/127.5 - 1.)(x) # normalize and re-center
-    x = Convolution2D(24, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(32, (5,5), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(2,2), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(1,1), activation='relu')(x)
-    x = Convolution2D(64, (3,3), strides=(1,1), activation='relu')(x)
+    x = Conv2D(24, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(32, (5,5), strides=(2,2), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(2,2), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(1,1), activation='relu')(x)
+    x = Conv2D(64, (3,3), strides=(1,1), activation='relu')(x)
     x = Flatten(name='flattened')(x)
     x = Dense(100, activation='relu')(x)
     x = Dropout(.1)(x)
